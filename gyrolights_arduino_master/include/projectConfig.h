@@ -167,12 +167,12 @@ DEFINE_GRADIENT_PALETTE(heatmap_fire_) {
     };
 
 DEFINE_GRADIENT_PALETTE(heatmap_test_) {
-           0,   0,   0, 100, // blue
-         255, 255,   0, 255, // yellow
+           0,   0, 255,   0, // blue
+         255, 255,   0,   0, // yellow
 };
 
 DEFINE_GRADIENT_PALETTE(heatmap_tooff_) {
-           0, 255, 200,   0, // blue
+           0,   0, 255,   0, // blue
          255,   0,   0,   0, // yellow
 };
 
