@@ -42,8 +42,6 @@ const float WMA_PARAM_ACCEL = 0.5; ///< parameter \f$\alpha\f$ in weighted movin
 const int UNIVERSE = 1; ///< First DMX Universe to listen for
 const int UNIVERSE_COUNT = 1; ///< Total number of Universes to listen for, starting at UNIVERSE
 
-const char BLE_SERVICE_UUID[] = "018c4715-a90b-7ff1-8c4c-aeed790b0a0a";
-const char BLE_CHARACTERISTIC_UUID[] = "018c4715-f39b-7e59-8928-4a8eda02c6a5";
 
 const char BLE_MASTER_NAME[] = "ESP_32"; ///< this has to be the same name for a pair of lights
 
@@ -95,6 +93,11 @@ const int I2C_GYRO_ADDR = 0x68;
 const int GYRO_ACCEL_SENSITIVITY = 2; ///< sensitivity of the accelerometer range: 0..3
 
 const int G_VAL = (2 << (15 - 2 - GYRO_ACCEL_SENSITIVITY));  
+
+
+// uuids from https://www.uuidgenerator.net/ 
+const char BLE_SERVICE_UUID[] = "018c4715-a90b-7ff1-8c4c-aeed790b0a0a";
+const char BLE_CHARACTERISTIC_UUID[] = "018c4715-f39b-7e59-8928-4a8eda02c6a5";
 
 } // namespace conf
 

@@ -1,40 +1,16 @@
 # GyroLight
 
-An ESP32 that controlls WS2812 LED strips on pneumatic stilts. The LED effects can react to the movement using a accelerometer/gyroscope. Different modes can be set using a rotary switch. Alternativeley, the ESP32 can receive wireless DMX data over E1.31. The ESP32 can be updated OTA. 
+A pair of pneumatic stilts, where both stilts are equipped with an ESP32, gyroscope and APA102 LED Strips. The LED effects can react to the movement using a accelerometer/gyroscope. Different modes can be set using a rotary switch on the master unit. The currently active mode is communicated to the slave unit via Bluetooth Low Energy.
 
 
-## Architecture Ideas
 
-__Use the button library from esp-idf-lib for MVP!!!__
+## Uploading 
+Es gibt ein Master und ein Slave programm. 
+Ein Paar (bzw. eine Gruppe) von Stelzen muss den selben `BLE_MASTER_NAME` haben. Dieser kann in `projectConfig.h` gesetzt werden. In jeder Gruppe muss genau ein ESP32 als Master und beliebig viele Slaves sein. 
 
-### Task1: user input
-``` 
-    - read user input (rf switch + rotary switch)
-    - debounce user input
-    - push to queue
-```
-
-### Task1.2: telnet input
-same as above, but over telnet. decode delnet commands and push to eventqueue
-
-### Task2: logic 
-```
-    - read queue
-    - if nothing, return
-    - if anything:
-        - check against global state
-        - if sth should happen, do so.
-```
-
-## Connection between stilts
-
-Talk via ESP-NOW? drawback: esp now can operate exclusively on the same channel as wifi
 
 
 ## Todo
-- [x] ruck? effekt
-- [ ] zweiter ESP, Funkverbindung
-- [ ] rotary Switch einlesen
-- [ ] state management
-- [ ] effekte in config
+- [ ] event driven
+- [ ] e1.31 sACN
 - [ ] ota update
