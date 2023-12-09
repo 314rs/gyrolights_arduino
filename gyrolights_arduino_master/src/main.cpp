@@ -10,9 +10,6 @@
 #include <BLE2902.h>
 
 #include <FastLED.h>
-#include <ESPAsyncE131.h>
-
-
 
 #include "button.h"
 
@@ -35,8 +32,6 @@ bool switchRF = false;
 
 static button_t rotarySwitch[conf::NUM_PINS_ROTARY_SWITCH];
 static button_t rfSwitch;
-
-ESPAsyncE131 e131(conf::UNIVERSE_COUNT);
 
 BLECharacteristic *pCharacteristic = nullptr;
 BLEDescriptor* pDescriptor = new BLE2902();
@@ -80,7 +75,7 @@ void onTelnetInput(String str) {
  * @brief task to handle e131 when active
  * 
  */
-void e131task(void*) {
+/* void e131task(void*) {
     esp_log_write(ESP_LOG_DEBUG, __FUNCTION__, "%s started", __FUNCTION__);
     uint16_t i = 0;
     while (true)
@@ -99,7 +94,7 @@ void e131task(void*) {
         esp_log_write(ESP_LOG_DEBUG, __FUNCTION__, "high watermark: %d", uxTaskGetStackHighWaterMark(NULL));
         i++;
     }
-};
+}; */
 
 /**
  * @brief 
