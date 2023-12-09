@@ -268,7 +268,7 @@ void localtask(void*) {
             //vTaskSuspend(NULL);
             break;
         case 4:
-            fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::YellowGreen);
+            fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Lime);
             //FastLED.show(conf::MAX_BRIGHTNESS);
             //vTaskSuspend(NULL);
             break;

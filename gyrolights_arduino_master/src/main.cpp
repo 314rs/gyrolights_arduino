@@ -11,7 +11,6 @@
 
 #include <FastLED.h>
 #include <ESPAsyncE131.h>
-#include <ESPTelnet.h>
 
 
 
@@ -22,7 +21,6 @@
 
 WiFiUDP Udp;
 
-ESPTelnet telnet;
 
 
 TaskHandle_t task_local = NULL;
@@ -46,7 +44,7 @@ static bool deviceConnected = false;
 
 
 
-void telnetTask(void*) {
+/* void telnetTask(void*) {
     while (true) {
         telnet.loop();
         if (Serial.available()) {
@@ -74,7 +72,7 @@ void onTelnetInput(String str) {
         telnet.disconnectClient();
     }
     ESP_LOG_LEVEL(ESP_LOG_INFO, "telnet", "received: %s", str.c_str());
-}
+} */
 
 
 
