@@ -1,0 +1,19 @@
+{
+	"folders": [
+        {
+            "path": "gyrolights_arduino_master"
+        },
+        {
+            "path": "gyrolights_arduino_slave"
+        },
+        {
+            "path": ".git"
+        }
+    ],
+    "settings": {
+        "files.associations": {
+            "*.tcc": "cpp",
+            "string": "cpp"
+        }
+    }
+}
