@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <esp_log.h>
+#include <esp_event.h>
 #include <driver/i2c.h>
 #include <driver/ledc.h>
 #include <lwip/def.h>
@@ -7,12 +8,12 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
-
 #if defined(GYRO_MASTER)
-    #include <BLE2902.h>
+#include <BLE2902.h>
 #elif defined(GYRO_SLAVE)
-    #include <BLEAdvertisedDevice.h>
+#include <BLEAdvertisedDevice.h>
 #endif
+
 
 
 #include <FastLED.h>
@@ -21,8 +22,14 @@
 
 #include "button.h"
 
+
 #include "projectConfig.h"
 
+
+
+esp_event_loop_handle_t loop_handle;
+ESP_EVENT_DEFINE_BASE(EFFECT_EVT);
+ESP_EVENT_DEFINE_BASE(MODE_EVT);
 
 WiFiUDP Udp;
 ESPTelnet telnet;
@@ -37,11 +44,9 @@ static int8_t rotaryswitch = -1;
 #if defined(GYRO_MASTER)
 TaskHandle_t task_e131 = NULL;
 
-static portMUX_TYPE my_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 WiFiServer Server(23);
 
-static SemaphoreHandle_t stateMutex;
 bool switchRF = false;
 
 static button_t rotarySwitch[conf::NUM_PINS_ROTARY_SWITCH];
@@ -63,6 +68,20 @@ const uint8_t notificationOn[] = {0x1, 0x0};
 static boolean doConnect = false;
 static boolean connected = false;
 #endif
+
+
+void run_on_event(void* hander_arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    int blinktime = *static_cast<int*>(event_data);
+    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "event callback fired, event base: %s ; event_id: %d, event_data: %x", event_base, event_id, blinktime);
+}
+
+void effectChangeCallback(void* hander_arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    
+}
+void modeChangeCallback(void* hander_arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    
+}
+
 
 
 /**
@@ -422,10 +441,12 @@ float mapfb(float in, float in_min, float in_max, float out_min, float out_max) 
 /**
  * @brief callback for the RF switch
  * 
+ * the button lib needs this callback
  * @param btn 
  * @param state 
  */
 void callbackSwitchRF(button_t *btn, button_state_t state) {
+    /// @todo line @lineinfo: Remove hardware dependency
     if (state == BUTTON_PRESSED) {
         switchRF = true;
         if (task_e131 != NULL) {
@@ -449,6 +470,10 @@ void callbackSwitchRF(button_t *btn, button_state_t state) {
             vTaskResume(task_local);
         }
     }
+
+    /////
+
+    esp_event_post_to(loop_handle, MODE_EVT, static_cast<int32_t>(state), nullptr, 0, 0);
 }
 
 
@@ -593,6 +618,21 @@ void setup() {
     esp_log_level_set("*", ESP_LOG_DEBUG);
     //esp_log_level_set("printGyro", ESP_LOG_ERROR);
 
+
+    // create input event loop
+    esp_event_loop_args_t loop_args = {
+        .queue_size = 10,
+        .task_name = "input_loop",
+        .task_priority = 1,
+        .task_stack_size = 0x1000,
+        .task_core_id = tskNO_AFFINITY
+    };
+    esp_event_loop_create(&loop_args, &loop_handle);
+    esp_event_handler_register_with(loop_handle, ESP_EVENT_ANY_BASE, ESP_EVENT_ANY_ID, run_on_event, NULL);
+    esp_event_handler_register_with(loop_handle, MODE_EVT, ESP_EVENT_ANY_ID, modeChangeCallback, NULL);
+    esp_event_handler_register_with(loop_handle, EFFECT_EVT, ESP_EVENT_ANY_ID, effectChangeCallback, NULL);
+    
+
     // config mpu6050 gyro sensor
     i2c_config_t conf = {
         .mode = I2C_MODE_MASTER,
@@ -631,7 +671,6 @@ void setup() {
     delay(1000);
 
 #if defined(GYRO_MASTER)
-    startBLE();
 
      // init input
     for (int i = 0; i < conf::NUM_PINS_ROTARY_SWITCH; i++) {
@@ -652,6 +691,8 @@ void setup() {
         .callback = callbackSwitchRF,
     };
     ESP_ERROR_CHECK(button_init(&rfSwitch));
+
+    startBLE();
 
 #elif defined(GYRO_SLAVE)
      // Init BLE
