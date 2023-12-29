@@ -13,6 +13,8 @@
 #include <hal/gpio_types.h>
 #include <esp_err.h>
 #include <FastLED.h>
+#include <driver/ledc.h>
+
 
 #include "effects/Effect.hpp"
 
