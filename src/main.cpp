@@ -16,8 +16,8 @@
 
 
 #include <FastLED.h>
-//#include <ESPAsyncE131.h>
-//#include <ESPTelnet.h>
+#include <ESPAsyncE131.h>
+#include <ESPTelnet.h>
 
 #include "button.h"
 
@@ -25,7 +25,14 @@
 
 
 WiFiUDP Udp;
+ESPTelnet telnet;
+ESPAsyncE131 e131(conf::UNIVERSE_COUNT);
 TaskHandle_t task_local = NULL;
+
+static CRGB leds[conf::NUM_STRIPS][conf::NUM_LEDS_PER_STRIP];
+
+static int8_t rotaryswitch = -1;
+
 
 #if defined(GYRO_MASTER)
 TaskHandle_t task_e131 = NULL;
@@ -134,13 +141,6 @@ DEFINE_GRADIENT_PALETTE(heatmap_tooff_) {
            0,   0, 255,   0, // blue
          255,   0,   0,   0, // yellow
 };
-
-
-static CRGB leds[conf::NUM_STRIPS][conf::NUM_LEDS_PER_STRIP];
-
-static int8_t rotaryswitch = -1;
-
-
 
 
 /**
@@ -302,7 +302,7 @@ void localtask(void*) {
 #if defined(GYRO_MASTER)
 
 
-/* void telnetTask(void*) {
+void telnetTask(void*) {
     while (true) {
         telnet.loop();
         if (Serial.available()) {
@@ -330,7 +330,7 @@ void onTelnetInput(String str) {
         telnet.disconnectClient();
     }
     ESP_LOG_LEVEL(ESP_LOG_INFO, "telnet", "received: %s", str.c_str());
-} */
+}
 
 
 
@@ -338,7 +338,7 @@ void onTelnetInput(String str) {
  * @brief task to handle e131 when active
  * 
  */
-/* void e131task(void*) {
+void e131task(void*) {
     esp_log_write(ESP_LOG_DEBUG, __FUNCTION__, "%s started", __FUNCTION__);
     uint16_t i = 0;
     while (true)
@@ -357,7 +357,8 @@ void onTelnetInput(String str) {
         esp_log_write(ESP_LOG_DEBUG, __FUNCTION__, "high watermark: %d", uxTaskGetStackHighWaterMark(NULL));
         i++;
     }
-}; */
+}; 
+
 
 /**
  * @brief 
@@ -397,9 +398,6 @@ void otaFun(void*) {
 }
 
 
-
-
-
 /**
  * @brief scales a float variable in [in_min, in_max] linearly to [out_min, out_max]
  * 
@@ -419,7 +417,6 @@ float mapfb(float in, float in_min, float in_max, float out_min, float out_max) 
         return out_max;
     return (in - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
-
 
 
 /**
@@ -454,6 +451,7 @@ void callbackSwitchRF(button_t *btn, button_state_t state) {
     }
 }
 
+
 /**
  * @brief callback for the rotary switch
  * 
@@ -476,6 +474,7 @@ void callbackRotaryswitch(button_t *btn, button_state_t state) {
         }
     }
 }
+
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
@@ -540,9 +539,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 #if defined(GYRO_MASTER)
 
-
-
-
 /**
  * @brief Start WiFi and also e131 operation mode.
  * 
@@ -558,9 +554,11 @@ void startWiFi() {
     WiFi.softAP(apName, conf::WIFI_AP_PW);
 }
 
+
 void stopWifi() {
 
 }
+
 
 void startBLE() {
     BLEDevice::init(conf::BLE_MASTER_NAME);
@@ -579,6 +577,7 @@ void startBLE() {
     BLEDevice::startAdvertising();
     esp_log_write(ESP_LOG_INFO, __FUNCTION__, "BLE started.");
 }
+
 
 void stopBLE() {
 
@@ -622,7 +621,7 @@ void setup() {
 
     // FastLED
     // black
-    FastLED.addLeds<APA102, conf::PIN_LED_DATA_1, conf::PIN_LED_CLOCK,  BGR>(leds[0], conf::NUM_LEDS_PER_STRIP);
+    FastLED.addLeds<APA102, conf::PIN_LED_DATA_1, conf::PIN_LED_CLOCK, BGR>(leds[0], conf::NUM_LEDS_PER_STRIP);
     
     
     fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black);
@@ -669,21 +668,22 @@ void setup() {
     //xTaskCreatePinnedToCore(telnetTask, "telnet task", configMINIMAL_STACK_SIZE * 4, NULL, 1, NULL, APP_CPU_NUM);
     //xTaskCreatePinnedToCore(otaFun, "OTAFun", configMINIMAL_STACK_SIZE * 4, NULL, 0, NULL, APP_CPU_NUM);
     xTaskCreatePinnedToCore(ledFun, "buildin LED", configMINIMAL_STACK_SIZE * 4, NULL, 0, NULL, APP_CPU_NUM);
-    //xTaskCreatePinnedToCore(e131task, "e131", configMINIMAL_STACK_SIZE * 16, NULL, 1, &task_e131,APP_CPU_NUM);
+    //xTaskCreatePinnedToCore(e131task, "e131", configMINIMAL_STACK_SIZE * 16, NULL, 1, &task_e131, APP_CPU_NUM);
     //vTaskSuspend(task_e131);
     xTaskCreatePinnedToCore(localtask, "local", configMINIMAL_STACK_SIZE * 16, NULL, 2, &task_local, APP_CPU_NUM);
     //vTaskSuspend(task_local);
 }
 
-#if defined(GYRO_MASTER)
 void loop() {
+
+#if defined(GYRO_MASTER)
+
     //ESP_LOGD("loop", "state of e131 task: %d", eTaskGetState(task_e131));
     vTaskDelay(pdMS_TO_TICKS(34));
     //FastLED.show(conf::MAX_BRIGHTNESS);
-}
 
 #elif defined(GYRO_SLAVE)
-void loop() {
+
     if (doConnect == true) {
         if (connectToServer(*pServerAddress)) {
             ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "connected");
@@ -695,8 +695,8 @@ void loop() {
     if (connected = false) {
         pBLEScan->start(0);
     }
-
-
     vTaskDelay(10);
-}
+
 #endif 
+
+}

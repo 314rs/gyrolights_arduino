@@ -14,3 +14,4 @@ Ein Paar (bzw. eine Gruppe) von Stelzen muss den selben `BLE_MASTER_NAME` haben.
 - [ ] event driven
 - [ ] e1.31 sACN
 - [ ] ota update
+- [ ] move bluetooth stack to nimble (maybe better with esp-idf buildsystem)
