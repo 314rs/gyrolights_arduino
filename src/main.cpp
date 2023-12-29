@@ -8,14 +8,11 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
-
 #if defined(GYRO_MASTER)
 #include <BLE2902.h>
 #elif defined(GYRO_SLAVE)
 #include <BLEAdvertisedDevice.h>
 #endif
-
-
 
 #include <FastLED.h>
 #include <ESPAsyncE131.h>
