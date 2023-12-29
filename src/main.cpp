@@ -8,6 +8,7 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
+
 #if defined(GYRO_MASTER)
 #include <BLE2902.h>
 #elif defined(GYRO_SLAVE)
@@ -21,7 +22,7 @@
 #include <ESPTelnet.h>
 
 #include "button.h"
-
+#include "RotarySwitch.h"
 
 #include "projectConfig.h"
 
@@ -46,6 +47,8 @@ TaskHandle_t task_e131 = NULL;
 
 
 WiFiServer Server(23);
+
+RotarySwitch<conf::NUM_PINS_ROTARY_SWITCH> test_rotarySwitch;
 
 bool switchRF = false;
 
