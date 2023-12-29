@@ -7,9 +7,17 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
-#include <BLE2902.h>
+
+#if defined(GYRO_MASTER)
+    #include <BLE2902.h>
+#elif defined(GYRO_SLAVE)
+    #include <BLEAdvertisedDevice.h>
+#endif
+
 
 #include <FastLED.h>
+//#include <ESPAsyncE131.h>
+//#include <ESPTelnet.h>
 
 #include "button.h"
 
@@ -18,9 +26,7 @@
 
 WiFiUDP Udp;
 
-
-
-TaskHandle_t task_local = NULL;
+#if defined(GYRO_MASTER)
 TaskHandle_t task_e131 = NULL;
 
 static portMUX_TYPE my_spinlock = portMUX_INITIALIZER_UNLOCKED;
@@ -37,6 +43,25 @@ BLECharacteristic *pCharacteristic = nullptr;
 BLEDescriptor* pDescriptor = new BLE2902();
 static bool deviceConnected = false;
 
+#elif defined(GYRO_SLAVE)
+static BLEScan* pBLEScan;
+static BLEClient* pClient;
+static BLEAddress* pServerAddress;
+static BLERemoteCharacteristic* pRemoteCharacteristic;
+
+const uint8_t notificationOn[] = {0x1, 0x0};
+
+//Flags stating if should begin connecting and if the connection is up
+static boolean doConnect = false;
+static boolean connected = false;
+#endif // GYRO_MASTER
+
+
+
+TaskHandle_t task_local = NULL;
+
+
+#if defined(GYRO_MASTER)
 
 
 /* void telnetTask(void*) {
@@ -226,6 +251,60 @@ class MyServerCallbacks: public BLEServerCallbacks {
 };
 
 
+#elif defined(GYRO_SLAVE)
+static void remoteNotifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
+    ESP_LOG_LEVEL(ESP_LOG_INFO, __func__, "value: %i", *pData);
+    rotaryswitch = *pData;
+}
+
+
+class MyClientCallback : public BLEClientCallbacks {
+    void onConnect(BLEClient* pclient) {}
+
+    void onDisconnect(BLEClient* pclient) {
+        ESP_LOG_LEVEL(ESP_LOG_WARN, __func__, "Disconnected from to BLE Device!");
+        //pBLEScan->start(0);z
+        ESP.restart();
+        connected = false;
+    }
+};
+
+bool connectToServer(BLEAddress pAddress) {
+    pClient = BLEDevice::createClient();
+    pClient->setClientCallbacks(new MyClientCallback());
+
+    pClient->connect(pAddress);
+    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "Connected to BLE Device!");
+    BLERemoteService* pRemoteService = pClient->getService(conf::BLE_SERVICE_UUID);
+    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "Found service!");
+    pRemoteCharacteristic = pRemoteService->getCharacteristic(conf::BLE_CHARACTERISTIC_UUID);
+    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "Found characteristic!");
+    pRemoteCharacteristic->registerForNotify(remoteNotifyCallback);
+    //pRemoteCharacteristic->getDescriptor(BLEUUID((uint16_t)0x2902))->writeValue((uint8_t*) notificationOn, 2, true);
+    return true;
+}
+
+
+class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
+    void onResult(BLEAdvertisedDevice advertisedDevice) {
+        if (advertisedDevice.getName() == conf::BLE_MASTER_NAME) {
+            advertisedDevice.getScan()->stop();
+            pServerAddress = new BLEAddress(advertisedDevice.getAddress());
+            ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "BLE Device Found. Connecting!");
+            doConnect = true;
+        }
+    }
+};
+
+
+#endif // GYRO_MASTER
+
+
+#if defined(GYRO_MASTER)
+
+
+
+
 /**
  * @brief Start WiFi and also e131 operation mode.
  * 
@@ -267,6 +346,7 @@ void stopBLE() {
 
 }
 
+#endif // GYRO_MASTER
 
 void setup() {
     // Serial and debug
@@ -299,7 +379,7 @@ void setup() {
    
 
 
-    startBLE();
+    
 
 
     // FastLED
@@ -313,7 +393,10 @@ void setup() {
     // sanity delay
     delay(1000);
 
-    // init input
+#if defined(GYRO_MASTER)
+    startBLE();
+
+     // init input
     for (int i = 0; i < conf::NUM_PINS_ROTARY_SWITCH; i++) {
         rotarySwitch[i] = button_t{
             .gpio = conf::PINS_ROTARY_SWITCH[i],
@@ -333,6 +416,17 @@ void setup() {
     };
     ESP_ERROR_CHECK(button_init(&rfSwitch));
 
+#elif defined(GYRO_SLAVE)
+     // Init BLE
+    BLEDevice::init("");
+    pBLEScan = BLEDevice::getScan();
+    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+    pBLEScan->setActiveScan(true);
+    pBLEScan->start(0);
+#endif // GYRO_MASTER
+    
+   
+
     // create tasks
     //xTaskCreatePinnedToCore(telnetTask, "telnet task", configMINIMAL_STACK_SIZE * 4, NULL, 1, NULL, APP_CPU_NUM);
     //xTaskCreatePinnedToCore(otaFun, "OTAFun", configMINIMAL_STACK_SIZE * 4, NULL, 0, NULL, APP_CPU_NUM);
@@ -343,8 +437,28 @@ void setup() {
     //vTaskSuspend(task_local);
 }
 
+#if defined(GYRO_MASTER)
 void loop() {
     //ESP_LOGD("loop", "state of e131 task: %d", eTaskGetState(task_e131));
     vTaskDelay(pdMS_TO_TICKS(34));
     //FastLED.show(conf::MAX_BRIGHTNESS);
 }
+
+#elif defined(GYRO_SLAVE)
+void loop() {
+    if (doConnect == true) {
+        if (connectToServer(*pServerAddress)) {
+            ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "connected");
+            connected = true;
+        }
+        doConnect = false;
+    }
+
+    if (connected = false) {
+        pBLEScan->start(0);
+    }
+
+
+    vTaskDelay(10);
+}
+#endif // MASTER

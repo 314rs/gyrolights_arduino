@@ -13,8 +13,6 @@
 #include <ESPAsyncE131.h>
 #include <ESPTelnet.h>
 
-
-
 #include "button.h"
 
 #include "../../gyrolights_arduino_master/include/projectConfig.h"
@@ -24,15 +22,12 @@ static BLEClient* pClient;
 static BLEAddress* pServerAddress;
 static BLERemoteCharacteristic* pRemoteCharacteristic;
 
-
-TaskHandle_t task_local = NULL;
-
-
 const uint8_t notificationOn[] = {0x1, 0x0};
 
 //Flags stating if should begin connecting and if the connection is up
 static boolean doConnect = false;
 static boolean connected = false;
+TaskHandle_t task_local = NULL;
 
 static void remoteNotifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
     ESP_LOG_LEVEL(ESP_LOG_INFO, __func__, "value: %i", *pData);
@@ -77,8 +72,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
         }
     }
 };
-
-
 
 
 
