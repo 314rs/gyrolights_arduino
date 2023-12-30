@@ -34,7 +34,7 @@ ESPTelnet telnet;
 ESPAsyncE131 e131(conf::UNIVERSE_COUNT);
 TaskHandle_t task_local = NULL;
 
-static CRGB leds[conf::NUM_STRIPS][conf::NUM_LEDS_PER_STRIP];
+CRGB leds[conf::NUM_STRIPS][conf::NUM_LEDS_PER_STRIP];
 
 static int8_t rotaryswitch = -1;
 
@@ -45,7 +45,7 @@ TaskHandle_t task_e131 = NULL;
 
 WiFiServer Server(23);
 
-RotarySwitch<conf::NUM_PINS_ROTARY_SWITCH> test_rotarySwitch;
+static RotarySwitch<conf::NUM_PINS_ROTARY_SWITCH> test_rotarySwitch;
 
 bool switchRF = false;
 
@@ -70,16 +70,139 @@ static boolean connected = false;
 #endif
 
 
+#if defined(GYRO_MASTER)
+
+/**
+ * @brief Start WiFi and also e131 operation mode.
+ * 
+ */
+void startWiFi() {
+    // AP
+    char apName[32];
+    uint8_t mac[16];
+    esp_read_mac(mac, esp_mac_type_t::ESP_MAC_WIFI_STA);
+    sprintf(apName, "%s%X%X%X", conf::WIFI_AP_SSID_PREFIX, mac[3], mac[4], mac[5]);
+    ESP_LOGI("mac","%s", apName);
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(apName, conf::WIFI_AP_PW);
+
+    //ESP_ERROR_CHECK(!e131.begin(E131_MULTICAST, conf::UNIVERSE, conf::UNIVERSE_COUNT));
+        //xTaskCreatePinnedToCore(e131task, "e131", configMINIMAL_STACK_SIZE * 16, NULL, 1, &task_e131, APP_CPU_NUM);
+        //esp_log_set_vprintf(telnetLogCallback); // route log output to telnet
+
+}
+
+void stopWifi() {
+
+    //vTaskSuspend(task_e131);
+}
+
+class MyServerCallbacks: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+      deviceConnected = true;
+      BLEDevice::startAdvertising();
+    };
+
+    void onDisconnect(BLEServer* pServer) {
+      deviceConnected = false;
+    }
+};
+
+void startBLE() {
+    BLEDevice::init(conf::BLE_MASTER_NAME);
+    BLEServer *pServer = BLEDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
+    BLEService *pService = pServer->createService(conf::BLE_SERVICE_UUID);
+    pCharacteristic = pService->createCharacteristic(conf::BLE_CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+    pCharacteristic->setValue("Value: Hello World!");
+    pDescriptor->setValue("Oakleaf | Gyro-Mode");
+    pCharacteristic->addDescriptor(pDescriptor);
+    pService->start();
+    BLEAdvertising *pAdvertising = pServer->getAdvertising();
+    pAdvertising->addServiceUUID(conf::BLE_SERVICE_UUID);
+    pAdvertising->setScanResponse(true);
+    pAdvertising->setMinPreferred(0x12);
+    BLEDevice::startAdvertising();
+    esp_log_write(ESP_LOG_INFO, __FUNCTION__, "BLE started.");
+}
+
+void stopBLE() {
+
+}
+
+#endif
+
+
+
+/**
+ * @brief eventloop boilerplate
+ * @todo remove this
+ */
 void run_on_event(void* hander_arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     int blinktime = *static_cast<int*>(event_data);
     ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "event callback fired, event base: %s ; event_id: %d, event_data: %x", event_base, event_id, blinktime);
 }
 
+/**
+ * @brief eventloop callback, when effect shall change
+ */
 void effectChangeCallback(void* hander_arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "event callback fired, event base: %s ; event_id: %d", event_base, event_id);
+    rotaryswitch = event_id;
+
+    if (task_local != NULL) {
+        vTaskDelete(task_local);
+    }
+    xTaskCreatePinnedToCore(conf::effects[event_id], "local", configMINIMAL_STACK_SIZE * 16, NULL, 2, &task_local, APP_CPU_NUM);
     
+    // local task darf nicht laufen, wenn im RF Modus
+    /// @todo remove hardware dependency
+    if (switchRF) {
+        vTaskSuspend(task_local);
+    }
+
 }
-void modeChangeCallback(void* hander_arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
-    
+
+/**
+ * @brief eventloop callback, when mode shall change to RF (WiFi and E131)
+ */
+void modeChangeToRFCallback(void* hander_arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "event callback fired, event base: %s ; event_id: %d", event_base, event_id);
+
+    stopBLE();
+    startWiFi();
+
+    switchRF = true;
+    if (task_e131 != NULL) {
+        vTaskResume(task_e131);
+        ESP_LOGI("switchRF", "RF on");
+    }
+    fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black);
+    FastLED.show();
+    if (task_local != NULL) {
+        vTaskSuspend(task_local);
+    }
+}
+
+/**
+ * @brief eventloop callback, when mode shall change to local (BT, master and slave)
+ */
+void modeChangeToLocalCallback(void* hander_arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "event callback fired, event base: %s ; event_id: %d", event_base, event_id);
+
+    stopWifi();
+    startBLE();
+
+    switchRF = false;
+    if (task_e131 != NULL) {
+        vTaskSuspend(task_e131);
+        ESP_LOGI("switchRF", "RF off");
+    }
+    fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black);
+    FastLED.show();
+    if (task_local != NULL) {
+        vTaskResume(task_local);
+    }
 }
 
 
@@ -446,34 +569,9 @@ float mapfb(float in, float in_min, float in_max, float out_min, float out_max) 
  * @param state 
  */
 void callbackSwitchRF(button_t *btn, button_state_t state) {
-    /// @todo line @lineinfo: Remove hardware dependency
-    if (state == BUTTON_PRESSED) {
-        switchRF = true;
-        if (task_e131 != NULL) {
-            vTaskResume(task_e131);
-            ESP_LOGI("switchRF", "RF on");
-        }
-        fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black);
-        FastLED.show();
-        if (task_local != NULL) {
-            vTaskSuspend(task_local);
-        }
-    } else if (state == BUTTON_RELEASED) {
-        switchRF = false;
-        if (task_e131 != NULL) {
-            vTaskSuspend(task_e131);
-            ESP_LOGI("switchRF", "RF off");
-        }
-        fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black);
-        FastLED.show();
-        if (task_local != NULL) {
-            vTaskResume(task_local);
-        }
+    if (state == BUTTON_PRESSED || state == BUTTON_RELEASED) {
+        esp_event_post_to(loop_handle, MODE_EVT, static_cast<int32_t>(state), nullptr, 0, 0);
     }
-
-    /////
-
-    esp_event_post_to(loop_handle, MODE_EVT, static_cast<int32_t>(state), nullptr, 0, 0);
 }
 
 
@@ -500,17 +598,19 @@ void callbackRotaryswitch(button_t *btn, button_state_t state) {
     }
 }
 
-
-class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
-      deviceConnected = true;
-      BLEDevice::startAdvertising();
-    };
-
-    void onDisconnect(BLEServer* pServer) {
-      deviceConnected = false;
+void taskReadRotarySwitch(void*) {
+    int prevState = -1;
+    while (true) {
+        int state = test_rotarySwitch.getState();
+        if (state != prevState) {
+            prevState = state;
+            esp_event_post_to(loop_handle, EFFECT_EVT, state, nullptr, 0, 0);
+        }
     }
-};
+}
+
+
+
 
 
 #elif defined(GYRO_SLAVE)
@@ -562,62 +662,13 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 #endif
 
 
-#if defined(GYRO_MASTER)
 
-/**
- * @brief Start WiFi and also e131 operation mode.
- * 
- */
-void startWiFi() {
-    // AP
-    char apName[32];
-    uint8_t mac[16];
-    esp_read_mac(mac, esp_mac_type_t::ESP_MAC_WIFI_STA);
-    sprintf(apName, "%s%X%X%X", conf::WIFI_AP_SSID_PREFIX, mac[3], mac[4], mac[5]);
-    ESP_LOGI("mac","%s", apName);
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(apName, conf::WIFI_AP_PW);
-}
-
-
-void stopWifi() {
-
-}
-
-
-void startBLE() {
-    BLEDevice::init(conf::BLE_MASTER_NAME);
-    BLEServer *pServer = BLEDevice::createServer();
-    pServer->setCallbacks(new MyServerCallbacks());
-    BLEService *pService = pServer->createService(conf::BLE_SERVICE_UUID);
-    pCharacteristic = pService->createCharacteristic(conf::BLE_CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
-    pCharacteristic->setValue("Value: Hello World!");
-    pDescriptor->setValue("Oakleaf | Gyro-Mode");
-    pCharacteristic->addDescriptor(pDescriptor);
-    pService->start();
-    BLEAdvertising *pAdvertising = pServer->getAdvertising();
-    pAdvertising->addServiceUUID(conf::BLE_SERVICE_UUID);
-    pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x12);
-    BLEDevice::startAdvertising();
-    esp_log_write(ESP_LOG_INFO, __FUNCTION__, "BLE started.");
-}
-
-
-void stopBLE() {
-
-}
-
-#endif
 
 void setup() {
     // Serial and debug
     Serial.begin(115200);
     Serial.setDebugOutput(true);
-    //esp_log_set_vprintf(telnetLogCallback); // route log output to telnet
     esp_log_level_set("*", ESP_LOG_DEBUG);
-    //esp_log_level_set("printGyro", ESP_LOG_ERROR);
-
 
     // create input event loop
     esp_event_loop_args_t loop_args = {
@@ -629,9 +680,9 @@ void setup() {
     };
     esp_event_loop_create(&loop_args, &loop_handle);
     esp_event_handler_register_with(loop_handle, ESP_EVENT_ANY_BASE, ESP_EVENT_ANY_ID, run_on_event, NULL);
-    esp_event_handler_register_with(loop_handle, MODE_EVT, ESP_EVENT_ANY_ID, modeChangeCallback, NULL);
+    esp_event_handler_register_with(loop_handle, MODE_EVT, BUTTON_PRESSED, modeChangeToRFCallback, NULL); ///< @todo maybe button states are mixed up.
+    esp_event_handler_register_with(loop_handle, MODE_EVT, BUTTON_RELEASED, modeChangeToLocalCallback, NULL);
     esp_event_handler_register_with(loop_handle, EFFECT_EVT, ESP_EVENT_ANY_ID, effectChangeCallback, NULL);
-    
 
     // config mpu6050 gyro sensor
     i2c_config_t conf = {
@@ -649,40 +700,19 @@ void setup() {
     static const uint8_t acc_range[] = {0x1C, (conf::GYRO_ACCEL_SENSITIVITY << 3)}; // range of accelerometer   // register for gyro: 0x1b
     ESP_ERROR_CHECK_WITHOUT_ABORT(i2c_master_write_to_device(I2C_NUM_0, conf::I2C_GYRO_ADDR, acc_range, sizeof(acc_range), conf::I2C_TIMEOUT_MS/portTICK_RATE_MS));
 
-    
-    // e131
-    delay(100);
-    //ESP_ERROR_CHECK(!e131.begin(E131_MULTICAST, conf::UNIVERSE, conf::UNIVERSE_COUNT));
-   
-
-
-    
-
-
     // FastLED
-    // black
     FastLED.addLeds<APA102, conf::PIN_LED_DATA_1, conf::PIN_LED_CLOCK, BGR>(leds[0], conf::NUM_LEDS_PER_STRIP);
-    
-    
     fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black);
     FastLED.show();
 
     // sanity delay
-    delay(1000);
+    delay(100);
 
 #if defined(GYRO_MASTER)
 
      // init input
-    for (int i = 0; i < conf::NUM_PINS_ROTARY_SWITCH; i++) {
-        rotarySwitch[i] = button_t{
-            .gpio = conf::PINS_ROTARY_SWITCH[i],
-            .internal_pull = false,
-            .pressed_level = 0,
-            .autorepeat = false,
-            .callback = callbackRotaryswitch,
-        };
-        ESP_ERROR_CHECK(button_init(&rotarySwitch[i]));
-    }
+    test_rotarySwitch.init(conf::PINS_ROTARY_SWITCH, 40000);
+
     rfSwitch = button_t{
         .gpio = conf::PIN_RF_SWITCH,
         .internal_pull = false,
@@ -692,6 +722,7 @@ void setup() {
     };
     ESP_ERROR_CHECK(button_init(&rfSwitch));
 
+    // ble, maybe not neccessary
     startBLE();
 
 #elif defined(GYRO_SLAVE)
@@ -701,7 +732,7 @@ void setup() {
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
     pBLEScan->setActiveScan(true);
     pBLEScan->start(0);
-#endif // GYRO_MASTER
+#endif
     
    
 
@@ -709,10 +740,7 @@ void setup() {
     //xTaskCreatePinnedToCore(telnetTask, "telnet task", configMINIMAL_STACK_SIZE * 4, NULL, 1, NULL, APP_CPU_NUM);
     //xTaskCreatePinnedToCore(otaFun, "OTAFun", configMINIMAL_STACK_SIZE * 4, NULL, 0, NULL, APP_CPU_NUM);
     xTaskCreatePinnedToCore(ledFun, "buildin LED", configMINIMAL_STACK_SIZE * 4, NULL, 0, NULL, APP_CPU_NUM);
-    //xTaskCreatePinnedToCore(e131task, "e131", configMINIMAL_STACK_SIZE * 16, NULL, 1, &task_e131, APP_CPU_NUM);
-    //vTaskSuspend(task_e131);
     xTaskCreatePinnedToCore(localtask, "local", configMINIMAL_STACK_SIZE * 16, NULL, 2, &task_local, APP_CPU_NUM);
-    //vTaskSuspend(task_local);
 }
 
 void loop() {

@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <driver/gpio.h>
 
+
 template<unsigned int NUM_PINS> class RotarySwitch
 {
 private:
@@ -15,11 +16,15 @@ private:
     int64_t stableStateTimestamp = 0;
     
 
-    static time_t debounceIntervall_uS;
+    time_t debounceIntervall_uS;
     // callback ??
 
 public:
-    RotarySwitch();
+    /**
+     * @tparam NUM_PINS number of pins connected to the rotary switch
+     * @param pins pointer to array of pins 
+     */ 
+    void init(const gpio_num_t* pins, time_t debounceIntervall_uS);
     int getState();
     void update();
 
@@ -27,11 +32,13 @@ public:
 
 
 template <unsigned int NUM_PINS>
-RotarySwitch<NUM_PINS>::RotarySwitch()
+void RotarySwitch<NUM_PINS>::init(const gpio_num_t* pins, time_t debounceIntervall_uS)
 {
-   /*  for (auto pin : pins) {
+    this->debounceIntervall_uS = debounceIntervall_uS;
+    memcpy(this->pins, pins, NUM_PINS);
+    for (auto pin : this->pins) {
         pinMode(pin, INPUT);
-    } */
+    } 
 }
 
 template <unsigned int NUM_PINS>
@@ -62,6 +69,7 @@ void RotarySwitch<NUM_PINS>::update()
             stableState = measuredState;
             stableStateTimestamp = measuredState;
             // state updated!
+            /// @TODO: maybe add callback here?
         }
     }
 }

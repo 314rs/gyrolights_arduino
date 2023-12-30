@@ -19,6 +19,8 @@
 #include "effects/Effect.hpp"
 
 
+
+
 /**
  * All important configuration parameters are in the namespace `conf`
  */
@@ -61,20 +63,20 @@ const gpio_num_t PINS_ROTARY_SWITCH[] = {
     GPIO_NUM_18,
     GPIO_NUM_17,
     GPIO_NUM_16,
-    GPIO_NUM_15,
-    GPIO_NUM_14,
-    GPIO_NUM_13,
+//    GPIO_NUM_15,
+//    GPIO_NUM_14,
+//    GPIO_NUM_13,
     GPIO_NUM_34
 };
 ///< all rotary switch pins are pulled up in hardware
 
 const gpio_num_t PIN_LED_CLOCK = GPIO_NUM_19;
 const gpio_num_t PIN_LED_DATA_1 = GPIO_NUM_23;
-const gpio_num_t PIN_LED_DATA_2 = GPIO_NUM_25;
-const gpio_num_t PIN_LED_DATA_3 = GPIO_NUM_26;
-const gpio_num_t PIN_LED_DATA_4 = GPIO_NUM_27;
-const gpio_num_t PIN_LED_DATA_5 = GPIO_NUM_32;
-const gpio_num_t PIN_LED_DATA_6 = GPIO_NUM_33;
+// const gpio_num_t PIN_LED_DATA_2 = GPIO_NUM_25;
+// const gpio_num_t PIN_LED_DATA_3 = GPIO_NUM_26;
+// const gpio_num_t PIN_LED_DATA_4 = GPIO_NUM_27;
+// const gpio_num_t PIN_LED_DATA_5 = GPIO_NUM_32;
+// const gpio_num_t PIN_LED_DATA_6 = GPIO_NUM_33;
 
 const gpio_num_t PIN_RF_SWITCH = GPIO_NUM_35; ///< Input Pullup in Hardware
 
@@ -94,7 +96,23 @@ const int I2C_GYRO_ADDR = 0x68;
 
 const int GYRO_ACCEL_SENSITIVITY = 2; ///< sensitivity of the accelerometer range: 0..3
 
-const int G_VAL = (2 << (15 - 2 - GYRO_ACCEL_SENSITIVITY));  
+const int G_VAL = (2 << (15 - 2 - GYRO_ACCEL_SENSITIVITY)); 
+
+}
+
+extern CRGB leds[conf::NUM_STRIPS][conf::NUM_LEDS_PER_STRIP];
+
+namespace conf {
+
+const TaskFunction_t effects[NUM_PINS_ROTARY_SWITCH + 1] = {
+    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black); FastLED.show();},  // first position, i.e. no pin connected.
+    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Red); FastLED.show();},  // second position = pin 1
+    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Green); FastLED.show();},  // pin 2
+    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Blue); FastLED.show();},  // ...
+    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Yellow); FastLED.show();},  
+    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Magenta); FastLED.show();},  
+    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Cyan); FastLED.show();}
+};
 
 
 // uuids from https://www.uuidgenerator.net/ 
