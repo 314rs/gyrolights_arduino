@@ -16,7 +16,6 @@
 #include <driver/ledc.h>
 
 
-#include "effects/Effect.hpp"
 
 
 
@@ -97,23 +96,6 @@ const int I2C_GYRO_ADDR = 0x68;
 const int GYRO_ACCEL_SENSITIVITY = 2; ///< sensitivity of the accelerometer range: 0..3
 
 const int G_VAL = (2 << (15 - 2 - GYRO_ACCEL_SENSITIVITY)); 
-
-}
-
-extern CRGB leds[conf::NUM_STRIPS][conf::NUM_LEDS_PER_STRIP];
-extern TaskHandle_t task_local;
-
-namespace conf {
-
-const TaskFunction_t effects[NUM_PINS_ROTARY_SWITCH + 1] = {
-    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  // first position, i.e. no pin connected.
-    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Red); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  // second position = pin 1
-    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Green); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  // pin 2
-    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Blue); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  // ...
-//    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Yellow); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  
-//    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Magenta); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  
-//    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Cyan); FastLED.show(); task_local = NULL; vTaskDelete(NULL);}
-};
 
 
 // uuids from https://www.uuidgenerator.net/ 
