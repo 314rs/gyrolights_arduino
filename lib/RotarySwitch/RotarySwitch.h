@@ -35,9 +35,9 @@ template <unsigned int NUM_PINS>
 void RotarySwitch<NUM_PINS>::init(const gpio_num_t* pins, time_t debounceIntervall_uS)
 {
     this->debounceIntervall_uS = debounceIntervall_uS;
-    memcpy(this->pins, pins, NUM_PINS);
+    memcpy(this->pins, pins, sizeof(gpio_num_t) * NUM_PINS);
     for (auto pin : this->pins) {
-        pinMode(pin, INPUT);
+        pinMode(pin, INPUT_PULLUP);  ///@todo remove internal pullup or have this as an option
     } 
 }
 
@@ -54,7 +54,7 @@ void RotarySwitch<NUM_PINS>::update()
     unsigned int sum = 0;
     int measuredState = 0;
     for (int i = 0; i < NUM_PINS; i++) {
-        levels[i] = digitalRead(pins[i]);
+        levels[i] = !digitalRead(pins[i]);
         if (!sum)
             measuredState++;
         sum += levels[i];

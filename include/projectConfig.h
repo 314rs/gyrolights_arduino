@@ -58,15 +58,15 @@ const gpio_num_t LED_PIN = GPIO_NUM_2;
 
 
 const gpio_num_t PINS_ROTARY_SWITCH[] = {
-    GPIO_NUM_36,
-    GPIO_NUM_39,
+//    GPIO_NUM_36,
+//    GPIO_NUM_39,
     GPIO_NUM_18,
     GPIO_NUM_17,
     GPIO_NUM_16,
-//    GPIO_NUM_15,
-//    GPIO_NUM_14,
-//    GPIO_NUM_13,
-    GPIO_NUM_34
+//    GPIO_NUM_15,      // JTAG PIN
+//    GPIO_NUM_14,      // JTAG PIN
+//    GPIO_NUM_13,      // JTAG PIN
+//    GPIO_NUM_34
 };
 ///< all rotary switch pins are pulled up in hardware
 
@@ -101,17 +101,18 @@ const int G_VAL = (2 << (15 - 2 - GYRO_ACCEL_SENSITIVITY));
 }
 
 extern CRGB leds[conf::NUM_STRIPS][conf::NUM_LEDS_PER_STRIP];
+extern TaskHandle_t task_local;
 
 namespace conf {
 
 const TaskFunction_t effects[NUM_PINS_ROTARY_SWITCH + 1] = {
-    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black); FastLED.show();},  // first position, i.e. no pin connected.
-    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Red); FastLED.show();},  // second position = pin 1
-    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Green); FastLED.show();},  // pin 2
-    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Blue); FastLED.show();},  // ...
-    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Yellow); FastLED.show();},  
-    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Magenta); FastLED.show();},  
-    [](void* pv) {fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Cyan); FastLED.show();}
+    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  // first position, i.e. no pin connected.
+    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Red); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  // second position = pin 1
+    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Green); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  // pin 2
+    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Blue); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  // ...
+//    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Yellow); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  
+//    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Magenta); FastLED.show(); task_local = NULL; vTaskDelete(NULL);},  
+//    [](void* pv) {ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode"); fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Cyan); FastLED.show(); task_local = NULL; vTaskDelete(NULL);}
 };
 
 
