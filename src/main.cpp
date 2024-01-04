@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <esp_log.h>
 #include <esp_event.h>
+#include <esp_vfs.h>
 #include <driver/i2c.h>
 #include <driver/ledc.h>
 #include <lwip/def.h>
@@ -141,14 +142,17 @@ void effectChangeCallback(void* hander_arg, esp_event_base_t event_base, int32_t
     rotaryswitch = event_id;  ///< @todo remove
 
     if (task_local != NULL) {
+        ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "delete task_local");
         vTaskDelete(task_local);
         task_local = NULL;
     }
-    xTaskCreatePinnedToCore(conf::effects[event_id], "local", configMINIMAL_STACK_SIZE * 16, NULL, 2, &task_local, APP_CPU_NUM);
-    
+    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "create new task_local");
+    xTaskCreatePinnedToCore(conf::effects[event_id], "local", configMINIMAL_STACK_SIZE * 16, NULL, 0, &task_local, APP_CPU_NUM);
+
     // local task darf nicht laufen, wenn im RF Modus
     /// @todo remove hardware dependency
     if (switchRF) {
+        ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "suspend task_local, task_local: %p", task_local);
         vTaskSuspend(task_local);
     } 
 
@@ -241,7 +245,6 @@ void ledFun(void*) {
 }
 
 
-
 #if defined(GYRO_MASTER)
 
 
@@ -255,7 +258,13 @@ void ledFun(void*) {
  */
 void callbackSwitchRF(button_t *btn, button_state_t state) {
     if (state == BUTTON_PRESSED || state == BUTTON_RELEASED) {
-        esp_event_post_to(loop_handle, MODE_EVT, static_cast<int32_t>(state), NULL, 0, 0);
+        ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "post event, RF = %d", state);
+        esp_err_t e = (esp_event_post_to(loop_handle, MODE_EVT, static_cast<int32_t>(state), NULL, 0, 100));
+        if (e != ESP_OK) {
+            ESP_ERROR_CHECK_WITHOUT_ABORT(e);
+            ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "error: %x, state: %d", e, state);
+            ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_dump(stdout));
+        }
     }
 }
 
@@ -266,7 +275,9 @@ void taskReadRotarySwitch(void*) {
         int state = test_rotarySwitch.getState();
         if (state != prevState) {
             prevState = state;
-            esp_event_post_to(loop_handle, EFFECT_EVT, state, NULL, 0, 0);
+            ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "post event, rotary = %d", state);
+            ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(loop_handle, EFFECT_EVT, state, NULL, 0, 100));
+
         }
     }
 }
