@@ -96,7 +96,7 @@ void task_rainbow(void*) {
     while(true) {
         fill_rainbow(targetArray, numToFill, hue);
         hue++;
-        FastLED.show();
+        FastLED.show(conf::MAX_BRIGHTNESS);
         vTaskDelay(pdMS_TO_TICKS(mydelay));
     }
 }
@@ -112,7 +112,7 @@ template<CRGB* targetArray, uint numToFill, uint32_t colorcode>
 void task_staticColor(void*) {
     ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode, color: %X", colorcode);
     fill_solid(targetArray, numToFill, CRGB(colorcode));
-    FastLED.show();
+    FastLED.show(conf::MAX_BRIGHTNESS);
     task_local = NULL;
     vTaskDelete(NULL);
 }
