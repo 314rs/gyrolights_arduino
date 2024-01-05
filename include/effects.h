@@ -10,9 +10,22 @@
 
 extern TaskHandle_t task_local;
 
-extern TProgmemRGBGradientPalette_bytes heatmap_fire_;
-extern TProgmemRGBGradientPalette_bytes heatmap_test_;
-extern TProgmemRGBGradientPalette_bytes heatmap_tooff_;
+DEFINE_GRADIENT_PALETTE(heatmap_fire_) {
+           0,   0,   0,   0, // black
+         128, 255,   0,   0,   //red
+         224, 255, 255,   0,   //bright yellow
+         255, 255, 255, 255, // white
+    };
+
+DEFINE_GRADIENT_PALETTE(heatmap_test_) {
+           0,   0, 255,   0, // blue
+         255, 255,   0,   0, // yellow
+};
+
+DEFINE_GRADIENT_PALETTE(heatmap_tooff_) {
+           0,   0, 255,   0, // blue
+         255,   0,   0,   0, // yellow
+};
 
 CRGBPalette16 fire = heatmap_fire_;
 CRGBPalette16 test = heatmap_test_;
@@ -97,7 +110,7 @@ void task_rainbow(void*) {
  */
 template<CRGB* targetArray, uint numToFill, uint32_t colorcode>
 void task_staticColor(void*) {
-    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode");
+    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode, color: %X", colorcode);
     fill_solid(targetArray, numToFill, CRGB(colorcode));
     FastLED.show();
     task_local = NULL;
@@ -279,6 +292,7 @@ void task_case7(void*) {
 template<CRGB* targetArray, uint numToFill>
 void task_case8(void*) {
     int16_t rxvalues[7];
+    const float alpha = 1.0/16.0;
     float norm_accel_max = 0, norm_reading = 0, norm_prev = 0;
     static float norm_accel = 0;
     while (true) {
