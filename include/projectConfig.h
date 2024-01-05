@@ -30,8 +30,8 @@ namespace conf
 /*                          configuration parameters                          */
 /* -------------------------------------------------------------------------- */
 
-const char WIFI_AP_SSID_PREFIX[] = "ESP32_"; ///< first half of the access point ssid. second half are the last 6 characters of the mac address in hex.
-const char WIFI_AP_PW[] = "password"; ///< password of the configuration access point
+const char WIFI_AP_SSID_PREFIX[] = "ESP32_"; ///< first part of the access point ssid. second part are the last 6 characters of the mac address in hex.
+const char WIFI_AP_PW[] = "password1234"; ///< password of the configuration access point
 
 const int NUM_LEDS_PER_STRIP = 21; ///< number of leds per individual strip
 const int NUM_STRIPS = 1; ///< number of led strips

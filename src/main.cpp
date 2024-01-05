@@ -39,21 +39,9 @@ extern void stopWiFi();
 extern BLECharacteristic *pCharacteristic;
 
 RotarySwitch<conf::NUM_PINS_ROTARY_SWITCH> test_rotarySwitch;
+#endif
 bool switchRF = false;
 static button_t rfSwitch;
-
-#elif defined(GYRO_SLAVE)
-static BLEScan* pBLEScan;
-static BLEClient* pClient;
-static BLEAddress* pServerAddress;
-static BLERemoteCharacteristic* pRemoteCharacteristic;
-
-const uint8_t notificationOn[] = {0x1, 0x0};
-
-//Flags stating if should begin connecting and if the connection is up
-static boolean doConnect = false;
-static boolean connected = false;
-#endif
 
 
 
@@ -67,7 +55,7 @@ void effectChangeCallback(void* hander_arg, esp_event_base_t event_base, int32_t
     rotaryswitch = event_id;  ///< @todo remove
 
     if (task_local != NULL) {
-        ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "delete task_local");
+        ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "delete old task_local");
         vTaskDelete(task_local);
         task_local = NULL;
     }
@@ -80,12 +68,14 @@ void effectChangeCallback(void* hander_arg, esp_event_base_t event_base, int32_t
         ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "suspend task_local, task_local: %p", task_local);
         vTaskSuspend(task_local);
     } else {
+
+#if defined(GYRO_MASTER)
         /// @todo maybe this shouldnt be here. ?
-        #if defined(GYRO_MASTER)
         if (pCharacteristic != nullptr) 
                 pCharacteristic->setValue((uint8_t*) &event_id, 1);
                 pCharacteristic->notify();
-        #endif
+#endif
+
     }
 
 
@@ -100,7 +90,6 @@ void modeChangeToRFCallback(void* hander_arg, esp_event_base_t event_base, int32
 
     stopBLE();
     startWiFi();
-
     switchRF = true;
     if (task_e131 != NULL) {
         vTaskResume(task_e131);
@@ -172,9 +161,6 @@ void task_onboardLED(void*) {
 
 
 
-
-#if defined(GYRO_MASTER)
-
 /**
  * @brief callback for the RF switch
  * 
@@ -189,7 +175,7 @@ void callbackSwitchRF(button_t *btn, button_state_t state) {
     }
 }
 
-
+#if defined(GYRO_MASTER)
 void taskReadRotarySwitch(void*) {
     int prevState = -1;
     while (true) {
@@ -202,57 +188,6 @@ void taskReadRotarySwitch(void*) {
         }
     }
 }
-
-
-
-
-
-#elif defined(GYRO_SLAVE)
-static void remoteNotifyCallback(BLERemoteCharacteristic* pBLERemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
-    ESP_LOG_LEVEL(ESP_LOG_INFO, __func__, "value: %i", *pData);
-    rotaryswitch = *pData;
-}
-
-
-class MyClientCallback : public BLEClientCallbacks {
-    void onConnect(BLEClient* pclient) {}
-
-    void onDisconnect(BLEClient* pclient) {
-        ESP_LOG_LEVEL(ESP_LOG_WARN, __func__, "Disconnected from to BLE Device!");
-        //pBLEScan->start(0);z
-        ESP.restart();
-        connected = false;
-    }
-};
-
-bool connectToServer(BLEAddress pAddress) {
-    pClient = BLEDevice::createClient();
-    pClient->setClientCallbacks(new MyClientCallback());
-
-    pClient->connect(pAddress);
-    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "Connected to BLE Device!");
-    BLERemoteService* pRemoteService = pClient->getService(conf::BLE_SERVICE_UUID);
-    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "Found service!");
-    pRemoteCharacteristic = pRemoteService->getCharacteristic(conf::BLE_CHARACTERISTIC_UUID);
-    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "Found characteristic!");
-    pRemoteCharacteristic->registerForNotify(remoteNotifyCallback);
-    //pRemoteCharacteristic->getDescriptor(BLEUUID((uint16_t)0x2902))->writeValue((uint8_t*) notificationOn, 2, true);
-    return true;
-}
-
-
-class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
-    void onResult(BLEAdvertisedDevice advertisedDevice) {
-        if (advertisedDevice.getName() == conf::BLE_MASTER_NAME) {
-            advertisedDevice.getScan()->stop();
-            pServerAddress = new BLEAddress(advertisedDevice.getAddress());
-            ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "BLE Device Found. Connecting!");
-            doConnect = true;
-        }
-    }
-};
-
-
 #endif
 
 
@@ -307,6 +242,7 @@ void setup() {
      // init input
     test_rotarySwitch.init(conf::PINS_ROTARY_SWITCH, 40000);
 
+#endif
     rfSwitch = button_t{
         .gpio = conf::PIN_RF_SWITCH,
         .internal_pull = false,
@@ -315,16 +251,6 @@ void setup() {
         .callback = callbackSwitchRF,
     };
     ESP_ERROR_CHECK(button_init(&rfSwitch));
-
-
-#elif defined(GYRO_SLAVE)
-     // Init BLE
-    BLEDevice::init("");
-    pBLEScan = BLEDevice::getScan();
-    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-    pBLEScan->setActiveScan(true);
-    pBLEScan->start(0);
-#endif
     
     // check state of RF Switch so that the correct mode starts.
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(loop_handle, MODE_EVT, digitalRead(conf::PIN_RF_SWITCH), NULL, 0, 10));
@@ -333,30 +259,13 @@ void setup() {
     //xTaskCreatePinnedToCore(telnetTask, "telnet task", configMINIMAL_STACK_SIZE * 4, NULL, 1, NULL, APP_CPU_NUM);
     //xTaskCreatePinnedToCore(otaFun, "OTAFun", configMINIMAL_STACK_SIZE * 4, NULL, 0, NULL, APP_CPU_NUM);
     xTaskCreatePinnedToCore(task_onboardLED, "onboard LED", configMINIMAL_STACK_SIZE * 4, NULL, 0, NULL, APP_CPU_NUM);
+    #if defined(GYRO_MASTER)
     xTaskCreatePinnedToCore(taskReadRotarySwitch, "read rotarySw", configMINIMAL_STACK_SIZE * 8, NULL, 0, NULL, APP_CPU_NUM);
+    #endif // GYRO_MASTER
+    
 }
 
 void loop() {
-
-#if defined(GYRO_MASTER)
-
     //ESP_LOGD("loop", "state of e131 task: %d", eTaskGetState(task_e131));
     vTaskDelay(pdMS_TO_TICKS(34));
-
-#elif defined(GYRO_SLAVE)
-
-    if (doConnect == true) {
-        if (connectToServer(*pServerAddress)) {
-            ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "connected");
-            connected = true;
-        }
-        doConnect = false;
-    }
-
-    if (connected = false) {
-        pBLEScan->start(0);
-    }
-    vTaskDelay(10);
-
-#endif 
 }
