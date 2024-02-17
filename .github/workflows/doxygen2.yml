@@ -35,14 +35,15 @@ jobs:
         uses: actions/configure-pages@v4
       - name: get doxygen-awesome-css
         run: |
-          mkdir -p foo
-          cd foo
+          mkdir -p docs
+          cd docs
           git submodule add https://github.com/jothepro/doxygen-awesome-css.git
           cd doxygen-awesome-css
           git checkout v2.3.1
-          cd ../..
+          pwd
       - name: get doxygen
         run: |
+          pwd
           sudo apt install doxygen graphviz 
       - name: build doxygen
         run: doxygen
