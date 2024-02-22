@@ -1,6 +1,7 @@
 #pragma once
-
+#if defined(ARDUINO)
 #include <Arduino.h>
+#endif // ARDUINO
 #include <FastLED.h>
 #include <esp_log.h>
 #include <lwip/def.h>
@@ -110,7 +111,7 @@ void task_rainbow(void*) {
  */
 template<CRGB* targetArray, uint numToFill, uint32_t colorcode>
 void task_staticColor(void*) {
-    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode, color: %X", colorcode);
+    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode, color: %06X", colorcode);
     fill_solid(targetArray, numToFill, CRGB(colorcode));
     FastLED.show(conf::MAX_BRIGHTNESS);
     task_local = NULL;

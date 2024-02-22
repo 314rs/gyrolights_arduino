@@ -17,7 +17,7 @@ namespace conf {
      * contains the effects mapped from the rotary switch.
      */
     const TaskFunction_t effects[NUM_PINS_ROTARY_SWITCH + 1] = {
-        task_staticColor<*leds, conf::NUM_LEDS_TOTAL, CRGB::Black>, // first position, i.e. no pin connected.
+        task_staticColor<*leds, conf::NUM_LEDS_TOTAL, CRGB::Black>, // first position, i.e. no pin connected. best to leave this staticColor-black
     //    task_staticColor<*leds, conf::NUM_LEDS_TOTAL, CRGB::Red>, 
     //    task_case3<*leds, conf::NUM_LEDS_TOTAL>,
         task_gyroSimple<*leds, conf::NUM_LEDS_TOTAL>,

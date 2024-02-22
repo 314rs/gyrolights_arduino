@@ -1,5 +1,6 @@
 #pragma once
 
+///\todo remove Arduino dependency
 #include <Arduino.h>
 #include <driver/gpio.h>
 
@@ -41,6 +42,14 @@ void RotarySwitch<NUM_PINS>::init(const gpio_num_t* pins, time_t debounceInterva
     } 
 }
 
+
+/**
+ * @brief 
+ * 
+ * @tparam NUM_PINS 
+ * @retval 0 if no pin is pulled low
+ * @return number of connedted pin, 1-indexed
+ */
 template <unsigned int NUM_PINS>
 int RotarySwitch<NUM_PINS>::getState()
 {   
