@@ -98,9 +98,9 @@ const int GYRO_ACCEL_SENSITIVITY = 2; ///< sensitivity of the accelerometer rang
 const int G_VAL = (2 << (15 - 2 - GYRO_ACCEL_SENSITIVITY)); 
 
 
-// uuids from https://www.uuidgenerator.net/ 
-const char BLE_SERVICE_UUID[] = "018c4715-a90b-7ff1-8c4c-aeed790b0a0a";
-const char BLE_CHARACTERISTIC_UUID[] = "018c4715-f39b-7e59-8928-4a8eda02c6a5";
+// uuids from https://www.uuidgenerator.net/  // there is no need to change these
+const char BLE_SERVICE_UUID_str[] = "018c4715-a90b-7ff1-8c4c-aeed790b0a0a";
+const char BLE_CHARACTERISTIC_UUID_str[] = "018c4715-f39b-7e59-8928-4a8eda02c6a5";
 
 } // namespace conf
 
