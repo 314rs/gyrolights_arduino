@@ -75,11 +75,7 @@ void effectChangeCallback(void* hander_arg, esp_event_base_t event_base, int32_t
                 pCharacteristic->setValue((uint8_t*) &event_id, 1);
                 pCharacteristic->notify();
 #endif
-
     }
-
-
-
 }
 
 /**
@@ -87,21 +83,15 @@ void effectChangeCallback(void* hander_arg, esp_event_base_t event_base, int32_t
  */
 void modeChangeToRFCallback(void* hander_arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "event callback fired, event base: %s ; event_id: %d", event_base, event_id);
-
-    stopBLE();
-    startWiFi();
-    switchRF = true;
-    if (task_e131 != NULL) {
-        vTaskResume(task_e131);
-        ESP_LOGI("switchRF", "RF on");
-    } else {
-        // xTaskCreatePinnedToCore(e131task, "e131", configMINIMAL_STACK_SIZE * 16, NULL, 2, &task_local, APP_CPU_NUM); /// @todo check implementation
-    }
-    fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black);
-    FastLED.show();
     if (task_local != NULL) {
         vTaskSuspend(task_local);
     }
+
+    fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black);
+    stopBLE();
+    startWiFi();
+    switchRF = true;
+    FastLED.show();
 }
 
 /**
@@ -109,17 +99,12 @@ void modeChangeToRFCallback(void* hander_arg, esp_event_base_t event_base, int32
  */
 void modeChangeToLocalCallback(void* hander_arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "event callback fired, event base: %s ; event_id: %d", event_base, event_id);
-
     stopWiFi();
     startBLE();
-
     switchRF = false;
-    if (task_e131 != NULL) {
-        vTaskSuspend(task_e131);
-        ESP_LOGI("switchRF", "RF off");
-    }
     fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black);
     FastLED.show();
+    
     if (task_local != NULL) {
         vTaskResume(task_local);
     } 
@@ -176,6 +161,9 @@ void callbackSwitchRF(button_t *btn, button_state_t state) {
 }
 
 #if defined(GYRO_MASTER)
+/**
+ * RTOS-Style Task. Called in setup, then runs forever
+ */
 void taskReadRotarySwitch(void*) {
     int prevState = -1;
     while (true) {
@@ -184,8 +172,8 @@ void taskReadRotarySwitch(void*) {
             prevState = state;
             ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "post event, rotary = %d", state);
             ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(loop_handle, EFFECT_EVT, state, NULL, 0, 100));
-
         }
+        vTaskDelay(pdMS_TO_TICKS(2));
     }
 }
 #endif
@@ -199,6 +187,7 @@ void setup() {
     Serial.setDebugOutput(true);
     esp_log_level_set("*", ESP_LOG_VERBOSE);
     esp_log_level_set("e131task", ESP_LOG_DEBUG);
+    esp_log_level_set("readGyro", ESP_LOG_DEBUG);
 
     // create input event loop
     esp_event_loop_args_t loop_args = {
@@ -256,12 +245,10 @@ void setup() {
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(loop_handle, MODE_EVT, digitalRead(conf::PIN_RF_SWITCH), NULL, 0, 10));
 
     // create tasks
-    //xTaskCreatePinnedToCore(telnetTask, "telnet task", configMINIMAL_STACK_SIZE * 4, NULL, 1, NULL, APP_CPU_NUM);
-    //xTaskCreatePinnedToCore(otaFun, "OTAFun", configMINIMAL_STACK_SIZE * 4, NULL, 0, NULL, APP_CPU_NUM);
     xTaskCreatePinnedToCore(task_onboardLED, "onboard LED", configMINIMAL_STACK_SIZE * 4, NULL, 0, NULL, APP_CPU_NUM);
-    #if defined(GYRO_MASTER)
+#if defined(GYRO_MASTER)
     xTaskCreatePinnedToCore(taskReadRotarySwitch, "read rotarySw", configMINIMAL_STACK_SIZE * 8, NULL, 0, NULL, APP_CPU_NUM);
-    #endif // GYRO_MASTER
+#endif // GYRO_MASTER
     
 }
 
