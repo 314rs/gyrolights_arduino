@@ -146,38 +146,62 @@ void task_gyroSimple(void*) {
  * 
  * @tparam targetArray a pointer to the LED array to fill
  * @tparam numToFill the number of LEDs to fill in the array
+ * @tparam heatmap the color palette to use (has to be created earllier)
  */
 template<CRGB* targetArray, uint numToFill, TProgmemRGBGradientPalette_bytes heatmap>
 void task_gyroToHeatmap(void*) {
+    int16_t rxvalues[7];
+    const float alpha = 1.0/16.0;
+    float norm_accel_max = 0, norm_reading = 0, norm_prev = 0;
+    static float norm_accel = 0;
+    CRGBPalette16 palette = heatmap;
     while (true) {
+        readGyro(rxvalues);
+            
+        norm_reading = sqrtf(pow(rxvalues[0], 2) + pow(rxvalues[1], 2) + pow(rxvalues[2], 2)) - conf::G_VAL;
+        if (norm_accel_max < norm_accel) 
+            norm_accel_max = norm_accel;
+            ESP_LOGV(__func__, "norm_accel_max: %f", norm_accel_max);
+        if (norm_reading < norm_accel + 200) {
+            norm_accel = (norm_reading * alpha) +  (norm_accel * (1.0 - alpha));
+        } else {
+            norm_accel = norm_reading;
+        }
+        ESP_LOGV(__func__, "norm_accel: %f", norm_accel);
+        ESP_LOGV(__func__, "color: %06X", ColorFromPalette(palette, 0xff * (norm_accel/norm_accel_max)));
+        fill_solid(targetArray, numToFill, ColorFromPalette(palette, 0xff * (norm_accel/norm_accel_max)));
+        FastLED.show();
         vTaskDelay(34);
     }
 }
 
 
-/**
- * @brief legacy stuff
- */
-void localtask(void*) {
-    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __FUNCTION__, "%s started", __FUNCTION__);
-    // case 0
-    int16_t rxvalues[7];
-    static uint8_t r, g, b;
-    const float alpha = 1.0/16.0;
 
-    // case 6
-    unsigned long time_now, time_prev;
-    time_now = time_prev = millis();
-    float norm_accel_max = 0, norm_reading = 0, norm_prev = 0;
-    static float norm_accel = 0;
-    CRGBPalette16 fire = heatmap_fire_;
-    CRGBPalette16 test = heatmap_test_;
-    CRGBPalette16 tooff = heatmap_tooff_;
-    float jerk = 0;
-    static float jerk_prev = 0, jerk_max = 0, jerk_min = 0;
-    float directednormaccel = 0;
-    uint8_t brightness = 0;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* -------------------------------------------------------------------------- */
+/*                                Legacy stuff                                */
+/* -------------------------------------------------------------------------- */
 
 template<CRGB* targetArray, uint numToFill>
 void task_case1(void*) {
@@ -223,52 +247,6 @@ void task_case3(void*) {
 }
 
 template<CRGB* targetArray, uint numToFill>
-void task_case5(void*) {
-    int16_t rxvalues[7];
-    const float alpha = 1.0/16.0;
-    float norm_accel_max = 0, norm_reading = 0, norm_prev = 0;
-    static float norm_accel = 0;
-    while (true) {
-        readGyro(rxvalues);
-            
-        norm_reading = sqrtf(pow(rxvalues[0], 2) + pow(rxvalues[1], 2) + pow(rxvalues[2], 2)) - conf::G_VAL;
-        if (norm_accel_max < norm_accel) 
-            norm_accel_max = norm_accel;
-        if (norm_reading < norm_accel + 200) {
-            norm_accel = (norm_reading * alpha) +  (norm_accel * (1.0 - alpha));
-        } else {
-            norm_accel = norm_reading;
-        }
-        fill_solid(targetArray, numToFill, ColorFromPalette(tooff, 0xff * (norm_accel/norm_accel_max)));
-        //FastLED.show();
-        vTaskDelay(34);
-    }
-}
-
-template<CRGB* targetArray, uint numToFill>
-void task_case6(void*) {
-    int16_t rxvalues[7];
-    const float alpha = 1.0/16.0;
-    float norm_accel_max = 0, norm_reading = 0, norm_prev = 0;
-    static float norm_accel = 0;
-    while (true) {
-        readGyro(rxvalues);
-            
-        norm_reading = sqrtf(pow(rxvalues[0], 2) + pow(rxvalues[1], 2) + pow(rxvalues[2], 2)) - conf::G_VAL;
-        if (norm_accel_max < norm_accel) 
-            norm_accel_max = norm_accel;
-        if (norm_reading < norm_accel + 200) {
-            norm_accel = (norm_reading * alpha) +  (norm_accel * (1.0 - alpha));
-        } else {
-            norm_accel = norm_reading;
-        }
-        fill_solid(targetArray, numToFill, ColorFromPalette(fire, 0xff * (norm_accel/norm_accel_max)));
-        //FastLED.show();
-        vTaskDelay(34);
-    }
-}
-
-template<CRGB* targetArray, uint numToFill>
 void task_case7(void*) {
     int16_t rxvalues[7];
     float directednormaccel = 0;
@@ -286,29 +264,6 @@ void task_case7(void*) {
         ESP_LOG_LEVEL(ESP_LOG_INFO, "accel", "acceleration norm: %f\r", directednormaccel);
         //FastLED.show();
         //vTaskSuspend(NULL);
-        vTaskDelay(34);
-    }
-}
-
-template<CRGB* targetArray, uint numToFill>
-void task_case8(void*) {
-    int16_t rxvalues[7];
-    const float alpha = 1.0/16.0;
-    float norm_accel_max = 0, norm_reading = 0, norm_prev = 0;
-    static float norm_accel = 0;
-    while (true) {
-        readGyro(rxvalues);
-            
-        norm_reading = sqrtf(pow(rxvalues[0], 2) + pow(rxvalues[1], 2) + pow(rxvalues[2], 2)) - conf::G_VAL;
-        if (norm_accel_max < norm_accel) 
-            norm_accel_max = norm_accel;
-        if (norm_reading < norm_accel + 200) {
-            norm_accel = (norm_reading * alpha) +  (norm_accel * (1.0 - alpha));
-        } else {
-            norm_accel = norm_reading;
-        }
-        fill_solid(targetArray, numToFill, ColorFromPalette(test, 0xff * (norm_accel/norm_accel_max)));
-        
         vTaskDelay(34);
     }
 }
