@@ -27,15 +27,17 @@ extern RotarySwitch<conf::NUM_PINS_ROTARY_SWITCH> test_rotarySwitch;
 BLEServer* pServer = nullptr;
 BLECharacteristic *pCharacteristic = nullptr;
 BLEDescriptor* pDescriptor = new BLE2902();
+BLEService *pService = nullptr;
+BLEAdvertising *pAdvertising = nullptr;
 
 
 
 class MyServerCallbacks: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
-      BLEDevice::startAdvertising(); // allow multiple clients to connect
+    void onConnect(BLEServer*) override {
+        BLEDevice::startAdvertising(); // allow multiple clients to connect
     };
 
-    void onDisconnect(BLEServer* pServer) {
+    void onDisconnect(BLEServer*) override {
     }
 };
 
@@ -44,36 +46,55 @@ MyServerCallbacks myservercallbacks;
 
 
 void startBLE() {
-    ///\todo handle pointers savely
+    /**
+     * @todo handle pointers savely
+     * 
+     * @todo everytime this runs, a new service is created. This leads to multiple services
+     * also the esp restarts if this is called repeatedly
+     * ```
+     * [ 29518][D][BLEAdvertising.cpp:199] start(): - advertising service: 018c4715-a90b-7ff1-8c4c-aeed790b0a0a
+     * [ 29528][D][BLEAdvertising.cpp:199] start(): - advertising service: 018c4715-a90b-7ff1-8c4c-aeed790b0a0a
+     * [ 29538][D][BLEAdvertising.cpp:199] start(): - advertising service: 018c4715-a90b-7ff1-8c4c-aeed790b0a0a
+     * [ 29549][D][BLEAdvertising.cpp:199] start(): - advertising service: 018c4715-a90b-7ff1-8c4c-aeed790b0a0a
+     * ```
+     */
 
     // Create the BLE Device
     BLEDevice::init(conf::BLE_MASTER_NAME);
 
     // Create the BLE Server
-    pServer = BLEDevice::createServer();
-    pServer->setCallbacks(&myservercallbacks);
+    if (pServer == nullptr) {
+        pServer = BLEDevice::createServer();
+        pServer->setCallbacks(&myservercallbacks);
+    }
 
     // Create the BLE Service
-    BLEService *pService = pServer->createService(conf::BLE_SERVICE_UUID);
+    if (pService == nullptr) {
+        pService = pServer->createService(conf::BLE_SERVICE_UUID);
+    } 
 
     // Create a BLE Characteristic
-    pCharacteristic = pService->createCharacteristic(conf::BLE_CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_INDICATE);
-    uint8_t effect = test_rotarySwitch.getState();
+    if (pCharacteristic == nullptr) {
+        pCharacteristic = pService->createCharacteristic(conf::BLE_CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_INDICATE);
+        // Create a BLE Descriptor
+        //pDescriptor->setValue("Oakleaf | Gyro-Mode");  // probably this does nothing
+        pCharacteristic->addDescriptor(pDescriptor);
+        // Start the service
+        pService->start(); /// @bug this throws `[E][BLEDescriptor.cpp:60] executeCreate(): Descriptor already has a handle.` from the second time called
+    }    
+    uint8_t effect = uint8_t(test_rotarySwitch.getState());
     pCharacteristic->setValue(&effect, 1);
 
-    // Create a BLE Descriptor
-    //pDescriptor->setValue("Oakleaf | Gyro-Mode");  // probably this does nothing
-    pCharacteristic->addDescriptor(pDescriptor);
 
-    // Start the service
-    pService->start(); // this throws `[E][BLEDescriptor.cpp:60] executeCreate(): Descriptor already has a handle.` from the second time called
 
     // Start advertising
-    BLEAdvertising *pAdvertising = pServer->getAdvertising();
-    pAdvertising->addServiceUUID(conf::BLE_SERVICE_UUID);
-    pAdvertising->setScanResponse(false);  // server example says `true`, server_multiconnect example says `false` | `true`: services are advertised, `false`: services are not advertised (but tx power is)
-    pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue  // set value to 0x00 to not advertise this parameter
-    pAdvertising->setMaxPreferred(0x12);  // copied from arduino example. this was `setMinPreferred` again. maybe typo?
+    if (pAdvertising == nullptr) {
+        pAdvertising = pServer->getAdvertising();
+        pAdvertising->addServiceUUID(conf::BLE_SERVICE_UUID);
+        pAdvertising->setScanResponse(false);  // server example says `true`, server_multiconnect example says `false` | `true`: services are advertised, `false`: services are not advertised (but tx power is)
+        pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue  // set value to 0x00 to not advertise this parameter
+        pAdvertising->setMaxPreferred(0x12);  // copied from arduino example. this was `setMinPreferred` again. maybe typo?
+    }
     BLEDevice::startAdvertising();
     ESP_LOG_LEVEL(ESP_LOG_INFO, __FUNCTION__, "BLE started.");
 }

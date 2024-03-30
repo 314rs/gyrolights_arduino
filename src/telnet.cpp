@@ -14,7 +14,7 @@ void telnetTask(void*) {
             telnet.print(Serial.read());
         }
     }
-};
+}
 
 int telnetLogCallback(const char *fmt, va_list args) {
     if (telnet.isConnected()) {

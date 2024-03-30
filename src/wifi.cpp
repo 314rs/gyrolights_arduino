@@ -34,14 +34,14 @@ void e131task(void*) {
         vTaskDelay(34);
         ESP_LOG_LEVEL(ESP_LOG_VERBOSE, __FUNCTION__, "high watermark: %d", uxTaskGetStackHighWaterMark(NULL));
     }
-}; 
+}
 
 /**
  * @brief provide OTA Update functionality
  * 
  */
 void task_OTA(void*) {
-    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __FUNCTION__, "%s started", __FUNCTION__);
+    ESP_LOGD(__func__, "%s started", __func__);
     ArduinoOTA.begin();
     while (true) {
         ArduinoOTA.handle();
@@ -61,21 +61,21 @@ void startWiFi() {
     uint8_t mac[16];
     esp_read_mac(mac, esp_mac_type_t::ESP_MAC_WIFI_STA);
     sprintf(apName, "%s%X%X%X", conf::WIFI_AP_SSID_PREFIX, mac[3], mac[4], mac[5]);
-    ESP_LOGI("mac","%s", apName);
+    ESP_LOGI(__func__,"mac: %s", apName);
     WiFi.mode(WIFI_AP);
     WiFi.softAP(apName, conf::WIFI_AP_PW);
     IPAddress ipaddr = WiFi.softAPIP();
-    ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "wifi started. IP-Addr: %s", ipaddr.toString());
+    ESP_LOGD(__func__, "wifi started. IP-Addr: %s", ipaddr.toString().c_str());
 
     ESP_ERROR_CHECK_WITHOUT_ABORT(!e131.begin(E131_MULTICAST, conf::UNIVERSE, conf::UNIVERSE_COUNT));
     if (task_e131 == NULL) {
-        ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "create task_e131");
+        ESP_LOGD(__func__, "create task_e131");
         xTaskCreatePinnedToCore(e131task, "e131", configMINIMAL_STACK_SIZE * 16, NULL, 0, &task_e131, APP_CPU_NUM);
     } else {
         vTaskResume(task_e131);
     }
     if (taskh_OTA == NULL) {
-        ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "create task_OTA");
+        ESP_LOGD(__func__, "create task_OTA");
         xTaskCreatePinnedToCore(task_OTA, "OTA", configMINIMAL_STACK_SIZE * 4, NULL, 0, &taskh_OTA, APP_CPU_NUM);
     } else {
         vTaskResume(taskh_OTA);

@@ -27,7 +27,7 @@ TaskHandle_t taskh_OTA = NULL;
 
 CRGB leds[conf::NUM_STRIPS][conf::NUM_LEDS_PER_STRIP];
 
-static int8_t rotaryswitch = -1;
+static int rotaryswitch = -1;
 
 extern void startBLE();
 extern void stopBLE();
@@ -71,9 +71,10 @@ void effectChangeCallback(void* hander_arg, esp_event_base_t event_base, int32_t
 
 #if defined(GYRO_MASTER)
         /// @todo maybe this shouldnt be here. ?
-        if (pCharacteristic != nullptr) 
-                pCharacteristic->setValue((uint8_t*) &event_id, 1);
-                pCharacteristic->notify();
+        if (pCharacteristic != nullptr) {
+            pCharacteristic->setValue((uint8_t*) &event_id, 1);
+            pCharacteristic->notify();
+        }
 #endif
     }
 }
@@ -102,12 +103,14 @@ void modeChangeToLocalCallback(void* hander_arg, esp_event_base_t event_base, in
     stopWiFi();
     startBLE();
     switchRF = false;
-    fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black);
-    FastLED.show();
+    fill_solid(*leds, conf::NUM_LEDS_TOTAL, CRGB::Black); 
+    FastLED.show(); 
     
     if (task_local != NULL) {
         vTaskResume(task_local);
-    } 
+    } else {
+        ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_post_to(loop_handle, EFFECT_EVT, test_rotarySwitch.getState(), NULL, 0, 100));
+    }
 }
 
 
@@ -185,9 +188,6 @@ void setup() {
     // Serial and debug
     Serial.begin(115200);
     Serial.setDebugOutput(true);
-    esp_log_level_set("*", ESP_LOG_VERBOSE);
-    esp_log_level_set("e131task", ESP_LOG_DEBUG);
-    esp_log_level_set("readGyro", ESP_LOG_DEBUG);
 
     // create input event loop
     esp_event_loop_args_t loop_args = {
