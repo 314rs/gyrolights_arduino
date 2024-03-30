@@ -46,19 +46,6 @@ MyServerCallbacks myservercallbacks;
 
 
 void startBLE() {
-    /**
-     * @todo handle pointers savely
-     * 
-     * @todo everytime this runs, a new service is created. This leads to multiple services
-     * also the esp restarts if this is called repeatedly
-     * ```
-     * [ 29518][D][BLEAdvertising.cpp:199] start(): - advertising service: 018c4715-a90b-7ff1-8c4c-aeed790b0a0a
-     * [ 29528][D][BLEAdvertising.cpp:199] start(): - advertising service: 018c4715-a90b-7ff1-8c4c-aeed790b0a0a
-     * [ 29538][D][BLEAdvertising.cpp:199] start(): - advertising service: 018c4715-a90b-7ff1-8c4c-aeed790b0a0a
-     * [ 29549][D][BLEAdvertising.cpp:199] start(): - advertising service: 018c4715-a90b-7ff1-8c4c-aeed790b0a0a
-     * ```
-     */
-
     // Create the BLE Device
     BLEDevice::init(conf::BLE_MASTER_NAME);
 
@@ -80,12 +67,10 @@ void startBLE() {
         //pDescriptor->setValue("Oakleaf | Gyro-Mode");  // probably this does nothing
         pCharacteristic->addDescriptor(pDescriptor);
         // Start the service
-        pService->start(); /// @bug this throws `[E][BLEDescriptor.cpp:60] executeCreate(): Descriptor already has a handle.` from the second time called
+        pService->start(); 
     }    
     uint8_t effect = uint8_t(test_rotarySwitch.getState());
     pCharacteristic->setValue(&effect, 1);
-
-
 
     // Start advertising
     if (pAdvertising == nullptr) {
