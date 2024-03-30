@@ -8,7 +8,7 @@
 template<unsigned int NUM_PINS> class RotarySwitch
 {
 private:
-    gpio_num_t pins[NUM_PINS];
+    gpio_num_t m_pins[NUM_PINS];
     bool levels[NUM_PINS];
 
     int lastState = -1;
@@ -17,7 +17,7 @@ private:
     int64_t stableStateTimestamp = 0;
     
 
-    time_t debounceIntervall_uS;
+    time_t m_debounceIntervall_uS;
     // callback ??
 
 public:
@@ -35,9 +35,9 @@ public:
 template <unsigned int NUM_PINS>
 void RotarySwitch<NUM_PINS>::init(const gpio_num_t* pins, time_t debounceIntervall_uS)
 {
-    this->debounceIntervall_uS = debounceIntervall_uS;
-    memcpy(this->pins, pins, sizeof(gpio_num_t) * NUM_PINS);
-    for (auto pin : this->pins) {
+    m_debounceIntervall_uS = debounceIntervall_uS;
+    memcpy(this->m_pins, pins, sizeof(gpio_num_t) * NUM_PINS);
+    for (auto pin : this->m_pins) {
         pinMode(pin, INPUT_PULLUP);  ///@todo remove internal pullup or have this as an option
     } 
 }
@@ -61,24 +61,24 @@ template <unsigned int NUM_PINS>
 void RotarySwitch<NUM_PINS>::update()
 {
     unsigned int sum = 0;
-    int measuredState = 0;
+    unsigned int measuredState = 0;
     for (int i = 0; i < NUM_PINS; i++) {
-        levels[i] = !digitalRead(pins[i]);
+        levels[i] = !digitalRead(m_pins[i]);
         if (!sum)
             measuredState++;
         sum += levels[i];
     }
     if (sum <= 1) {
         measuredState *= sum;
-        uint64_t currentTime = esp_timer_get_time();
+        int64_t currentTime = esp_timer_get_time();
         if (lastState != measuredState) {
             lastState = measuredState;
             lastStateTimestamp = currentTime;
-        } else if (currentTime - lastStateTimestamp > debounceIntervall_uS) {
+        } else if (currentTime - lastStateTimestamp > m_debounceIntervall_uS) {
             stableState = measuredState;
             stableStateTimestamp = measuredState;
             // state updated!
-            /// @TODO: maybe add callback here?
+            /// @todo maybe add callback here?
         }
     }
 }

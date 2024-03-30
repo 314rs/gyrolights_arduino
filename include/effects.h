@@ -11,32 +11,12 @@
 
 extern TaskHandle_t task_local;
 
-DEFINE_GRADIENT_PALETTE(heatmap_fire_) {
-           0,   0,   0,   0, // black
-         128, 255,   0,   0,   //red
-         224, 255, 255,   0,   //bright yellow
-         255, 255, 255, 255, // white
-    };
-
-DEFINE_GRADIENT_PALETTE(heatmap_test_) {
-           0,   0, 255,   0, // blue
-         255, 255,   0,   0, // yellow
-};
-
-DEFINE_GRADIENT_PALETTE(heatmap_tooff_) {
-           0,   0, 255,   0, // blue
-         255,   0,   0,   0, // yellow
-};
-
-CRGBPalette16 fire = heatmap_fire_;
-CRGBPalette16 test = heatmap_test_;
-CRGBPalette16 tooff = heatmap_tooff_;
 
 
 /**
- * @brief read values from gyro sensor
+ * @brief fill array with values from gyro sensor
  * 
- * @param[in] rxvalues create int16_t rxvalues[7] before and pass pointer to it. will be filled with values for accelx, accely accelz, temp, gyrox, gyroy, gyroz
+ * @param[out] rxvalues create `int16_t rxvalues[7]` before and pass pointer to it. will be filled with values for accelx, accely accelz, temp, gyrox, gyroy, gyroz
  */
 void readGyro(int16_t *rxvalues) {
     const uint8_t startregister = 0x3B;
@@ -92,7 +72,7 @@ float mapfb(float in, float in_min, float in_max, float out_min, float out_max) 
 template<CRGB* targetArray, uint numToFill, uint PERIOD_LENGTH>
 void task_rainbow(void*) {
     ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode");
-    int hue = 0;
+    uint8_t hue = 0;
     const int mydelay = PERIOD_LENGTH * 4;  // approx. PERIOD_LENGTH * 1000 / 256. (nach 256 schleifen soll wieder die start-hue sein. das soll Period length dauern)
     while(true) {
         fill_rainbow(targetArray, numToFill, hue);
@@ -114,7 +94,7 @@ void task_staticColor(void*) {
     ESP_LOG_LEVEL(ESP_LOG_DEBUG, __func__, "new mode, color: %06X", colorcode);
     fill_solid(targetArray, numToFill, CRGB(colorcode));
     FastLED.show(conf::MAX_BRIGHTNESS);
-    task_local = NULL;
+    task_local = nullptr;
     vTaskDelete(NULL);
 }
 
@@ -135,7 +115,7 @@ void task_gyroSimple(void*) {
         g = ((1-alpha) * g ) + (alpha * (abs(rxvalues[1]) >> 7));
         b = ((1-alpha) * b ) + (alpha * (abs(rxvalues[2]) >> 7));
         fill_solid(targetArray, numToFill, CRGB(r, g, b));
-        FastLED.show();
+        FastLED.show(conf::MAX_BRIGHTNESS);
         vTaskDelay(34);
     }
 }
@@ -170,41 +150,15 @@ void task_gyroToHeatmap(void*) {
         ESP_LOGV(__func__, "norm_accel: %f", norm_accel);
         ESP_LOGV(__func__, "color: %06X", ColorFromPalette(palette, 0xff * (norm_accel/norm_accel_max)));
         fill_solid(targetArray, numToFill, ColorFromPalette(palette, 0xff * (norm_accel/norm_accel_max)));
-        FastLED.show();
+        FastLED.show(conf::MAX_BRIGHTNESS);
         vTaskDelay(34);
     }
 }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* -------------------------------------------------------------------------- */
-/*                                Legacy stuff                                */
-/* -------------------------------------------------------------------------- */
-
 template<CRGB* targetArray, uint numToFill>
-void task_case1(void*) {
+void task_effect_jerk_test(void*) {
     /* ---------------------------------- jerk ---------------------------------- */
     unsigned long time_now, time_prev;
     time_now = time_prev = millis();
@@ -222,16 +176,16 @@ void task_case1(void*) {
         jerk_min = jerk_min * 0.99;
         if (jerk > jerk_max) jerk_max = jerk;
         else if (jerk < jerk_min) jerk_min = jerk;
-        ESP_LOG_LEVEL(ESP_LOG_DEBUG, __FUNCTION__, "jerk: %f", jerk);
+        ESP_LOGV(__func__, "jerk: %f", jerk);
         fill_solid(targetArray, numToFill, CRGB::White);
-        FastLED.show(mapfb(jerk, jerk_min, jerk_max, 0, 255));
+        FastLED.show(mapfb(jerk, jerk_min, jerk_max, 0, conf::MAX_BRIGHTNESS));
         //FastLED.show(255 * (jerk > 100.0));
         vTaskDelay(34);
     }
 }
 
 template<CRGB* targetArray, uint numToFill>
-void task_case3(void*) {
+void task_effect_threashold(void*) {
     float directednormaccel = 0;
     while (true) {
         directednormaccel = directedAccelNorm();
@@ -240,20 +194,20 @@ void task_case3(void*) {
         } else {
             fill_solid(targetArray, numToFill, CRGB::Black);
         }
-        ESP_LOG_LEVEL(ESP_LOG_INFO, "accel", "acceleration norm: %f\r", directednormaccel);
-        FastLED.show();
+        ESP_LOGV(__func__, "acceleration norm: %f\r", directednormaccel);
+        FastLED.show(conf::MAX_BRIGHTNESS);
         vTaskDelay(34);
     }
 }
 
 template<CRGB* targetArray, uint numToFill>
-void task_case7(void*) {
+void task_effect_threashold_exp_decrease(void*) {
     int16_t rxvalues[7];
     float directednormaccel = 0;
     uint8_t brightness = 0;
     while (true) {
         readGyro(rxvalues);
-        ESP_LOG_LEVEL(ESP_LOG_INFO, "readGyro", "accelx: %7d, accely: %7d, accelz: %7d, temp: %7d, gyrox: %7d, gyroy: %7d, gyroz: %7d\r", (rxvalues[0]), (rxvalues[1]), (rxvalues[2]), (rxvalues[3]), (rxvalues[4]), (rxvalues[5]), (rxvalues[6]));
+        ESP_LOGV(__func__, "accelx: %7d, accely: %7d, accelz: %7d, temp: %7d, gyrox: %7d, gyroy: %7d, gyroz: %7d\r", (rxvalues[0]), (rxvalues[1]), (rxvalues[2]), (rxvalues[3]), (rxvalues[4]), (rxvalues[5]), (rxvalues[6]));
         directednormaccel = directedAccelNorm();
         if (directednormaccel < -10000) {
             brightness = conf::MAX_BRIGHTNESS;
@@ -261,9 +215,8 @@ void task_case7(void*) {
         } else {
             brightness = brightness * 0.95;
         }
-        ESP_LOG_LEVEL(ESP_LOG_INFO, "accel", "acceleration norm: %f\r", directednormaccel);
-        //FastLED.show();
-        //vTaskSuspend(NULL);
+        ESP_LOGV(__func__, "acceleration norm: %f\r", directednormaccel);
+        FastLED.show(conf::MAX_BRIGHTNESS);
         vTaskDelay(34);
     }
 }
