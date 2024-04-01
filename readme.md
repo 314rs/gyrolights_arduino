@@ -1,3 +1,5 @@
+<img src="./docs/media/jumping led color.svg" style="heigth: 20px; max-width: 20%; float: right;" />
+
 # GyroLights
 
 A pair of pneumatic stilts, where both stilts are equipped with an ESP32, gyroscope and APA102 LED Strips. The LED effects can react to the movement using a accelerometer/gyroscope. Different modes can be set using a rotary switch on the master unit. The currently active mode is communicated to the slave unit via Bluetooth Low Energy.

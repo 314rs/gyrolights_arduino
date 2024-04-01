@@ -4,7 +4,8 @@
 *.vscode/launch.json
 *.vscode/extensions.json
 *.vscode/ipch
-docs/
+docs/*
+!docs/media/
 *doxygen-awesome.css
 *.py
 *.txt
